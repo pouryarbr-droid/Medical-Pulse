@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Medical Pulse</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js"></script>
+<style>
+  html{color-scheme:light dark}
+  :root{
+    --bg:#f4f6f8; --surface:#ffffff; --surface-2:#eaeef3; --surface-3:#dfe5ec;
+    --border:#d7dee6; --border-strong:#bfc9d4;
+    --text:#131a22; --text-dim:#57626d; --text-faint:#889199;
+    --accent:#2f5fa0; --accent-strong:#1e3f6e; --accent-soft:#e2eaf6;
+    --good:#3c8f5f; --warn:#a8721f; --bad:#c1483f;
+    --font-body:'Public Sans',system-ui,-apple-system,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,'SF Mono',monospace;
+    --radius-sm:8px; --radius-md:12px; --radius-lg:14px;
+    --ease-out:cubic-bezier(.23,1,.32,1);
+    --shadow-sm:0 1px 2px rgba(20,30,25,.05),0 1px 1px rgba(20,30,25,.04);
+    --shadow-md:0 6px 20px rgba(20,30,25,.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1318; --surface:#161c23; --surface-2:#1e252d; --surface-3:#272f38;
+      --border:#2c343d; --border-strong:#3c4650;
+      --text:#edf0f3; --text-dim:#99a2ac; --text-faint:#6b747d;
+      --accent:#7fa8e0; --accent-strong:#a0c0ea; --accent-soft:#1b2836;
+      --good:#5fbf85; --warn:#d9a441; --bad:#e0685d;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.35);
+      --shadow-md:0 8px 24px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);padding-inline:16px;padding-block:20px 48px;max-width:1080px;margin-inline:auto;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--font-body);text-wrap:balance;margin:0}
+  .tabular{font-variant-numeric:tabular-nums}
+  a,button,select,input{font:inherit}
+  header.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .brand{display:flex;flex-direction:column;gap:3px}
+  .brand h1{font-size:23px;font-weight:800;letter-spacing:-0.015em}
+  .brand .sub{color:var(--text-dim);font-size:13px}
+  .top-actions{display:flex;align-items:center;gap:8px}
+  button.icon-btn{background:var(--surface);border:1px solid var(--border);color:var(--text-dim);width:38px;height:38px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .16s var(--ease-out),color .16s var(--ease-out),transform .12s var(--ease-out);flex:none}
+  button.icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+  button.icon-btn:active{transform:scale(.94)}
+  button.icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button.icon-btn svg{width:17px;height:17px}
+  #status-line{display:flex;align-items:center;gap:8px;color:var(--text-dim);font-size:12.5px;margin-bottom:18px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--text-faint);flex:none;transition:background .2s var(--ease-out)}
+  .dot.live{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb, var(--good) 20%, transparent)}
+  .dot.error{background:var(--bad)}
+
+  section{margin-bottom:28px}
+  section > h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:12px;font-weight:700}
+
+  /* filter bar */
+  #filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;margin-bottom:20px;box-shadow:var(--shadow-sm)}
+  select{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:7px 10px;font-size:12.5px;font-weight:600;font-family:var(--font-body);transition:border-color .16s var(--ease-out)}
+  select:hover{border-color:var(--border-strong)}
+  select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  /* Source / Medium: type-to-search combobox */
+  .combo{position:relative;display:inline-flex;align-items:center}
+  .combo input{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:7px 28px 7px 10px;font-size:12.5px;font-weight:600;font-family:var(--font-body);width:230px;max-width:100%;transition:border-color .16s var(--ease-out)}
+  .combo input::placeholder{color:var(--text-dim);opacity:1}
+  .combo input:hover{border-color:var(--border-strong)}
+  .combo input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .combo-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:22px;height:22px;border:none;background:transparent;color:var(--text-dim);font-size:16px;line-height:1;cursor:pointer;border-radius:5px}
+  .combo-clear:hover{color:var(--accent);background:var(--accent-soft)}
+  .combo-list{position:absolute;top:calc(100% + 4px);left:0;min-width:100%;width:max-content;max-width:min(420px,86vw);max-height:300px;overflow-y:auto;margin:0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-md);box-shadow:var(--shadow-md);z-index:40}
+  .combo-list li{padding:7px 10px;font-size:12.5px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:14px;color:var(--text)}
+  .combo-list li.active{background:var(--accent-soft)}
+  .combo-list li[aria-selected="true"]{font-weight:700;color:var(--accent)}
+  .combo-list li .meta{color:var(--text-dim);font-size:11px;white-space:nowrap}
+  .combo-list li.note{cursor:default;color:var(--text-dim);font-size:11.5px}
+  #custom-range{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  #custom-range .to-sep{color:var(--text-faint);font-size:12px}
+  .jdate-group{display:flex;gap:4px}
+  .jdate-group select{padding:7px 6px}
+  #filters .sep{width:1px;align-self:stretch;background:var(--border);margin:0 2px}
+  #range-label{color:var(--text-faint);font-size:11.5px;margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+  #tab-bar{position:relative;display:flex;gap:0;flex-wrap:wrap;margin-bottom:22px;border-bottom:1px solid var(--border)}
+  .tab-btn{position:relative;background:transparent;border:none;color:var(--text-dim);font-weight:700;font-size:13px;padding:10px 4px;cursor:pointer;margin-right:22px;font-family:var(--font-body);transition:color .16s var(--ease-out)}
+  .tab-btn:hover{color:var(--text)}
+  .tab-btn.active{color:var(--accent)}
+  .tab-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+  #tab-indicator{position:absolute;bottom:-1px;height:2px;background:var(--accent);border-radius:2px 2px 0 0;left:0;width:0;pointer-events:none}
+  .summary-line{background:var(--accent-soft);border-radius:var(--radius-sm);padding:10px 14px;font-size:12.5px;color:var(--text);margin-bottom:14px;line-height:1.55}
+  .summary-line b{font-weight:700;color:var(--accent-strong)}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(156px,1fr));gap:10px}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:13px 14px 12px;display:flex;flex-direction:column;gap:4px;justify-content:flex-start;transition:border-color .18s var(--ease-out),box-shadow .18s var(--ease-out),transform .18s var(--ease-out)}
+  .tile:hover{border-color:var(--border-strong);box-shadow:var(--shadow-sm);transform:translateY(-1px)}
+  .tile .label{font-size:11.5px;color:var(--text-dim);font-weight:600}
+  .tile .value{font-family:var(--font-mono);font-size:19px;font-weight:600;letter-spacing:-.01em}
+  .tile.derived{background:var(--accent-soft);border-color:transparent}
+  .tile .target-line{font-size:10.5px;color:var(--text-faint);font-family:var(--font-mono);margin-top:2px}
+  .tile .stat-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .stat-chip{font-size:10.5px;font-weight:700;border-radius:5px;padding:2px 6px;font-family:var(--font-mono);white-space:nowrap;letter-spacing:.01em}
+  .stat-chip.good{background:color-mix(in srgb, var(--good) 16%, transparent);color:var(--good)}
+  .stat-chip.warn{background:color-mix(in srgb, var(--warn) 16%, transparent);color:var(--warn)}
+  .stat-chip.bad{background:color-mix(in srgb, var(--bad) 16%, transparent);color:var(--bad)}
+  .stat-chip.neutral{background:var(--surface-2);color:var(--text-dim)}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow-sm)}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .panel-head h3{font-size:13.5px;font-weight:700}
+  .chart-wrap{position:relative;height:230px}
+
+  table{width:100%;border-collapse:collapse;font-size:12.8px}
+  .table-wrap{overflow-x:auto;max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-md);margin-top:12px}
+  .table-wrap.expanded{max-height:640px}
+  .fc-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;user-select:none;padding:0 2px}
+  .fc-toggle input{accent-color:var(--warn);width:14px;height:14px;margin:0;cursor:pointer}
+  .fc-toggle.disabled{opacity:.45;cursor:not-allowed}
+  .fc-toggle.disabled input{cursor:not-allowed}
+  .fc-hint{font-size:11.5px;color:var(--text-faint)}
+  table th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-dim);padding:9px 10px;border-bottom:1px solid var(--border)}
+  table th.sortable{cursor:pointer;user-select:none;transition:color .12s var(--ease-out)}
+  table th.sortable:hover{color:var(--text)}
+  table th.sortable.sort-active{color:var(--accent)}
+  table th .sort-arrow{display:inline-block;margin-left:4px;font-size:9px;opacity:.9}
+  table td{padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+  table tbody tr{transition:background .12s var(--ease-out)}
+  table tbody tr:hover{background:var(--surface-2)}
+  table tr:last-child td{border-bottom:none}
+  table td.num,table th.num{font-family:var(--font-mono);text-align:right}
+  table tr.zero{opacity:.48}
+  .rank{color:var(--text-faint);font-family:var(--font-mono);font-size:11px}
+
+  .empty-card,.error-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm)}
+  .empty-card h3,.error-card h3{font-size:16px}
+  .empty-card p,.error-card p{color:var(--text-dim);font-size:13.5px;line-height:1.55;margin:0}
+  .error-card{border-color:var(--bad)}
+  input[type=url]{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:10px 12px;font-size:13.5px;font-family:var(--font-mono);transition:border-color .16s var(--ease-out)}
+  input[type=url]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  button.primary{background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 16px;font-weight:700;font-size:13.5px;cursor:pointer;transition:filter .16s var(--ease-out),transform .1s var(--ease-out)}
+  button.primary:hover{filter:brightness(1.1)}
+  button.primary:active{transform:scale(.97)}
+  button.primary:focus-visible{outline:2px solid var(--accent-strong);outline-offset:2px}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:10px 16px;font-weight:600;font-size:13.5px;cursor:pointer;transition:border-color .16s var(--ease-out),transform .1s var(--ease-out)}
+  button.ghost:hover{border-color:var(--border-strong)}
+  button.ghost:active{transform:scale(.97)}
+  button.ghost:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  #settings-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:22px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-md);transform-origin:top right}
+  #settings-panel label{font-size:12px;color:var(--text-dim);font-weight:600}
+  .skeleton{background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:var(--radius-lg);height:68px}
+  @keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+  @media (prefers-reduced-motion:reduce){.skeleton{animation:none}}
+  footer{color:var(--text-faint);font-size:11.5px;text-align:center;margin-top:36px;line-height:1.6}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:720px){.grid-2{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Medical Pulse</h1>
+    <div class="sub">Live BI &middot; filtered straight from the Data tab</div>
+  </div>
+  <div class="top-actions">
+    <button class="icon-btn" id="refresh-btn" title="Refresh" aria-label="Refresh">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    </button>
+    <button class="icon-btn" id="settings-btn" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div id="status-line"><span class="dot" id="status-dot"></span><span id="status-text">Not connected yet</span></div>
+
+<div id="settings-panel" hidden>
+  <label for="endpoint-input" id="endpoint-label">Appointment endpoint URL</label>
+  <input type="url" id="endpoint-input" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" spellcheck="false">
+  <div class="row">
+    <button class="primary" id="save-endpoint">Save &amp; load</button>
+    <button class="ghost" id="clear-endpoint">Clear</button>
+    <button class="ghost" id="close-settings">Close</button>
+  </div>
+</div>
+
+<div id="empty-state" hidden>
+  <div class="empty-card">
+    <h3 id="empty-title">Connect to the Appointment sheet</h3>
+    <p id="empty-desc">This page reads raw rows through a small read-only endpoint published from that spreadsheet (Apps Script Web App) and does all filtering/aggregation here in the browser. Paste that URL in Settings to connect.</p>
+    <div class="row"><button class="primary" id="empty-settings-btn">Open settings</button></div>
+  </div>
+</div>
+
+<div id="error-state" hidden>
+  <div class="error-card">
+    <h3>Couldn't load data</h3>
+    <p id="error-detail">The endpoint didn't respond.</p>
+    <div class="row"><button class="ghost" id="error-retry">Try again</button><button class="ghost" id="error-settings-btn">Open settings</button></div>
+  </div>
+</div>
+
+<main id="content" hidden>
+  <div id="filters">
+    <select id="line-select">
+      <option value="appointment">Line: Appointment</option>
+      <option value="evisit">Line: E-visit</option>
+    </select>
+    <div class="sep"></div>
+    <select id="date-filter-select">
+      <option value="lastday">Last day with data</option>
+      <option value="last7">Last 7 days</option>
+      <option value="last30">Last 30 days</option>
+      <option value="mtd">Month to date</option>
+      <option value="qtd">Quarter to date</option>
+      <option value="custom">Custom range&hellip;</option>
+    </select>
+    <div id="custom-range" hidden>
+      <div class="jdate-group">
+        <select id="from-y" aria-label="From year"></select>
+        <select id="from-m" aria-label="From month"></select>
+        <select id="from-d" aria-label="From day"></select>
+      </div>
+      <span class="to-sep">&rarr;</span>
+      <div class="jdate-group">
+        <select id="to-y" aria-label="To year"></select>
+        <select id="to-m" aria-label="To month"></select>
+        <select id="to-d" aria-label="To day"></select>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <select id="channel-type-select"><option value="">Channel Type: All</option></select>
+    <div class="combo" id="sm-combo">
+      <input id="sm-input" type="text" role="combobox" aria-expanded="false" aria-controls="sm-list" aria-autocomplete="list" aria-label="Source / Medium filter" autocomplete="off" spellcheck="false" placeholder="Source / Medium: All">
+      <button type="button" id="sm-clear" class="combo-clear" aria-label="Clear Source / Medium filter" hidden>&times;</button>
+      <ul id="sm-list" class="combo-list" role="listbox" hidden></ul>
+    </div>
+    <select id="brand-select"><option value="">Brand: All</option></select>
+    <span id="range-label"></span>
+  </div>
+
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="landing">Landing Pages</button>
+    <button class="tab-btn" data-tab="copies">Copies</button>
+    <span id="tab-indicator"></span>
+  </div>
+
+  <div id="tab-overview" class="tab-panel">
+    <section id="tiles-section">
+      <h2>At a glance</h2>
+      <div class="tiles" id="tiles"></div>
+    </section>
+
+    <section id="trend-section">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Trend</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span id="forecast-hint" class="fc-hint"></span>
+            <select id="trend-granularity-select">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+            <select id="trend-metric-select"></select>
+            <label class="fc-toggle" id="forecast-toggle-label"><input type="checkbox" id="forecast-toggle"> Forecast</label>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+      </div>
+    </section>
+
+    <section id="breakdown-section">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Breakdown</h3>
+          <select id="breakdown-dim-select">
+            <option value="channelType">Channel Type</option>
+            <option value="brand">Brand</option>
+            <option value="sourceMedium">Source / Medium</option>
+            <option value="campaign">Campaign</option>
+            <option value="landingPage">Landing Page</option>
+            <option value="copy">Copy</option>
+          </select>
+        </div>
+        <div class="table-wrap expanded">
+          <table id="breakdown-table">
+            <thead><tr>
+              <th>#</th>
+              <th class="sortable" data-sort="name">Group</th>
+              <th class="num sortable" data-sort="leads">Leads</th>
+              <th class="num sortable" data-sort="mql">MQL</th>
+              <th class="num sortable" data-sort="orders">Orders</th>
+              <th class="num sortable" data-sort="cost">Cost</th>
+              <th class="num sortable" data-sort="cpl">CPL</th>
+              <th class="num sortable" data-sort="cpo">CPO</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="tab-landing" class="tab-panel" hidden>
+    <section>
+      <div class="panel">
+        <div class="panel-head"><h3>Landing Pages Performance</h3></div>
+        <div id="lp-summary" class="summary-line"></div>
+        <div class="grid-2">
+          <div class="chart-wrap"><canvas id="lp-chart"></canvas></div>
+          <div class="table-wrap">
+            <table id="lp-table">
+              <thead><tr><th>#</th><th>Landing Page</th><th class="num">Sessions</th><th class="num">Leads</th><th class="num">Sess&rarr;Lead</th><th class="num">MQL</th><th class="num">Orders</th><th class="num">Cost</th><th class="num">CPL</th><th class="num">CPO</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="tab-copies" class="tab-panel" hidden>
+    <section>
+      <div class="panel">
+        <div class="panel-head"><h3>Copies Performance</h3></div>
+        <div id="cp-summary" class="summary-line"></div>
+        <div class="grid-2">
+          <div class="chart-wrap"><canvas id="cp-chart"></canvas></div>
+          <div class="table-wrap">
+            <table id="cp-table">
+              <thead><tr><th>#</th><th>Campaign &middot; Copy</th><th class="num">Leads</th><th class="num">MQL</th><th class="num">MQL&rarr;Order</th><th class="num">Orders</th><th class="num">Cost</th><th class="num">CPL</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</main>
+
+<footer>Refreshes automatically every 5 minutes &middot; last pulled <span id="footer-time" class="tabular">&mdash;</span></footer>
+
+<script>
+(function(){
+  // Datalabels plugin: registered globally but off by default (it would clutter the breakdown bar
+  // charts with 12+ bars) — only the trend chart turns it on, per-dataset, below.
+  if (typeof ChartDataLabels !== 'undefined' && typeof Chart !== 'undefined'){
+    Chart.register(ChartDataLabels);
+    Chart.defaults.set('plugins.datalabels', { display: false });
+  }
+
+  // ---------- Jalali <-> Gregorian (jalaali-js algorithm, MIT-licensed public algorithm) ----------
+  function jDiv(a,b){return ~~(a/b);}
+  function jMod(a,b){return a-~~(a/b)*b;}
+  function jalCal(jy){
+    var breaks=[-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+    var bl=breaks.length, gy=jy+621, leapJ=-14, jp=breaks[0], jm,jump,leap,n,i;
+    for(i=1;i<bl;i+=1){jm=breaks[i];jump=jm-jp;if(jy<jm)break;leapJ=leapJ+jDiv(jump,33)*8+jDiv(jMod(jump,33),4);jp=jm;}
+    n=jy-jp;
+    leapJ=leapJ+jDiv(n,33)*8+jDiv(jMod(n,33)+3,4);
+    if(jMod(jump,33)===4&&jump-n===4) leapJ+=1;
+    var leapG=jDiv(gy,4)-jDiv((jDiv(gy,100)+1)*3,4)-150;
+    var march=20+leapJ-leapG;
+    if(jump-n<6) n=n-jump+jDiv(jump,33)*33;
+    leap=jMod(jMod(n+1,33)-1,4);
+    if(leap===-1)leap=4;
+    return {leap:leap,gy:gy,march:march};
+  }
+  function g2d(gy,gm,gd){
+    var d = jDiv((gy+jDiv(gm-8,6)+100100)*1461,4)+jDiv(153*jMod(gm+9,12)+2,5)+gd-34840408;
+    d = d - jDiv(jDiv(gy+100100+jDiv(gm-8,6),100)*3,4)+752;
+    return d;
+  }
+  function d2g(jdn){
+    var j=4*jdn+139361631;
+    j=j+jDiv(jDiv(4*jdn+183187720,146097)*3,4)*4-3908;
+    var i=jDiv(jMod(j,1461),4)*5+308;
+    var gd=jDiv(jMod(i,153),5)+1;
+    var gm=jMod(jDiv(i,153),12)+1;
+    var gy=jDiv(j,1461)-100100+jDiv(8-gm,6);
+    return {gy:gy,gm:gm,gd:gd};
+  }
+  function toJalaali(gy,gm,gd){
+    var jdn=g2d(gy,gm,gd);
+    var gy2=d2g(jdn).gy, jy=gy2-621, r=jalCal(jy), jdn1f=g2d(r.gy,3,r.march), k=jdn-jdn1f, jm,jd;
+    if(k>=0){
+      if(k<=185){jm=1+jDiv(k,31);jd=jMod(k,31)+1;return {jy:jy,jm:jm,jd:jd};}
+      k-=186;
+    } else {jy-=1;k+=179;if(r.leap===1)k+=1;}
+    jm=7+jDiv(k,30);jd=jMod(k,30)+1;
+    return {jy:jy,jm:jm,jd:jd};
+  }
+  function toGregorian(jy,jm,jd){
+    var r=jalCal(jy);
+    var g=d2g(g2d(r.gy,3,r.march)+(jm-1)*31-jDiv(jm,7)*(jm-7)+jd-1);
+    return g;
+  }
+  var JMONTHS = ['Far','Ord','Kho','Tir','Mor','Sha','Meh','Aba','Aza','Dey','Bah','Esf'];
+  var JMONTHS_FULL = ['Farvardin','Ordibehesht','Khordad','Tir','Mordad','Shahrivar','Mehr','Aban','Azar','Dey','Bahman','Esfand'];
+  function daysInJalaliMonth(jy,jm){
+    if (jm<=6) return 31;
+    if (jm<=11) return 30;
+    return jalCal(jy).leap===0 ? 30 : 29;
+  }
+
+  function isoFromParts(gy,gm,gd){
+    var mm=(gm<10?'0':'')+gm, dd=(gd<10?'0':'')+gd;
+    return gy+'-'+mm+'-'+dd;
+  }
+  function dateFromISO(iso){ return new Date(iso+'T00:00:00Z'); }
+  function isoAddDays(iso,n){
+    var d=dateFromISO(iso);
+    d.setUTCDate(d.getUTCDate()+n);
+    return isoFromParts(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
+  }
+  function jalaaliLabel(iso){
+    var d=dateFromISO(iso);
+    var j=toJalaali(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
+    return JMONTHS[j.jm-1]+' '+j.jd;
+  }
+
+  // ---------- State ----------
+  // Medical is two separate spreadsheets (Appointment, E-visit) behind two separate Apps Script
+  // deployments — the Line filter switches which endpoint is active and does a full reload, since
+  // the two lines' data/targets/channel types are entirely independent datasets.
+  var LINES = { appointment: { label: 'Appointment', lsKey: 'medical_pulse_endpoint_appointment' },
+                evisit: { label: 'E-visit', lsKey: 'medical_pulse_endpoint_evisit' } };
+  var lineFilter = 'appointment';
+  var RAW = null;          // { fields, rows } as returned by the endpoint
+  var FIELD_IDX = {};      // field name -> column index in each row array
+  var TARGETS = null;      // { fields, rows } from the Targets tab
+  var TARGET_IDX = {};     // field name -> column index in each target row
+  var TARGETS_BY_KEY = {}; // "year|MonthName" -> target row
+  var CHANNEL_TYPES = [];  // full canonical list from Settings (not just what's present in loaded rows)
+  var anchorISO = null;    // latest date present in the data ("today" for this dataset)
+  var minISO = null;       // earliest date present in the data (bounds the custom-range pickers)
+  var dateFilter = 'last7'; // lastday | last7 | last30 | mtd | qtd | custom
+  var customFrom = null, customTo = null; // ISO strings, only used when dateFilter === 'custom'
+  var channelTypeFilter = '';
+  var brandFilter = ''; // only meaningful on E-visit today — Appointment has no Brand column, filter is inert there
+  var trendMetric = 'leads';
+  var trendGranularity = 'daily'; // daily | weekly | monthly | yearly
+  var forecastOn = false; // the "Forecast" checkbox on the trend chart
+  var breakdownDim = 'channelType';
+  var breakdownSort = { key: 'cpl', dir: 'asc' }; // default matches the table's old fixed "best CPL first" order
+  var BREAKDOWN_SORT_DEFAULT_DIR_ = { name:'asc', leads:'desc', mql:'desc', orders:'desc', cost:'desc', cpl:'asc', cpo:'asc' };
+  var activeTab = 'overview';
+  var charts = { trend: null, breakdown: null, lp: null, cp: null };
+
+  var TYPED_METRICS = ['leads','mql','orders','cost'];
+  var METRIC_LABELS = { cost:'Cost (IRR)', impressions:'Impressions', clicks:'Clicks', sessions:'Sessions',
+    leads:'Leads', mql:'MQL', orders:'Orders', sms:'SMS Sent',
+    cpl:'CPL', cpo:'CPO', cpmql:'CPMQL' };
+
+  var els = {};
+  ['status-dot','status-text','settings-panel','endpoint-input','endpoint-label','empty-state','empty-title','empty-desc','error-state','error-detail',
+   'content','tiles','line-select','date-filter-select','custom-range','from-y','from-m','from-d','to-y','to-m','to-d','channel-type-select','brand-select','range-label',
+   'trend-metric-select','trend-granularity-select','breakdown-dim-select','footer-time',
+   'forecast-toggle','forecast-toggle-label','forecast-hint',
+   'lp-summary','cp-summary'].forEach(function(id){
+    els[id.replace(/-([a-z])/g,function(_,c){return c.toUpperCase();})] = document.getElementById(id);
+  });
+
+  function getEndpoint(line){ try { return localStorage.getItem(LINES[line].lsKey) || ''; } catch(e){ return ''; } }
+  function setEndpoint(line, url){ try { localStorage.setItem(LINES[line].lsKey, url); } catch(e){} }
+  function clearEndpoint(line){ try { localStorage.removeItem(LINES[line].lsKey); } catch(e){} }
+
+  function showOnly(id){
+    ['empty-state','error-state','content'].forEach(function(x){ document.getElementById(x).hidden = (x !== id); });
+  }
+  function setStatus(kind, text){
+    els.statusDot.className = 'dot' + (kind ? ' ' + kind : '');
+    els.statusText.textContent = text;
+  }
+
+  // ---------- Data access helpers ----------
+  // Medical has no Homelab-style Type split (Premium/Prescription/Free) — every metric is one blended
+  // column, so this is a plain field lookup with no type-conditional branching.
+  function field(row, name){ return row[FIELD_IDX[name]]; }
+  function metricValue(row, name){ return field(row, name) || 0; }
+
+  // ---------- Target lookup (Targets tab: one row per Jalali Year+Month) ----------
+  function tfield(row, name){ return row[TARGET_IDX[name]] || 0; }
+
+  // Per-Channel-Type targets exist only for Order and Cost ("Target Order <Channel>" / "Target Cost
+  // <Channel>" columns) — when a specific Channel Type filter is active, prefer that channel's own
+  // target over the blended one. "Organic Web"/"Organic App" are separate channels here (not one
+  // "Organic"), and Appointment's real dropdown value has a trailing space ("Organic Web ") — trimmed
+  // before matching. Channels with no target column (e.g. E-visit-only "Social") fall back to blended.
+  var CHANNEL_TARGET_METRICS_ = { orders: 'order', cost: 'cost' };
+  var CHANNEL_TARGET_SUFFIX_ = { 'Performance':'Performance', 'Organic Web':'OrganicWeb', 'Organic App':'OrganicApp', 'Blog':'Blog', 'Retention':'Retention', 'eCRM':'Ecrm' };
+
+  function monthlyTargetFor(metricKey, jy, jmIdx){
+    var row = TARGETS_BY_KEY[jy + '|' + JMONTHS_FULL[jmIdx-1]];
+    if (!row) return 0;
+    var chPrefix = CHANNEL_TARGET_METRICS_[metricKey];
+    if (channelTypeFilter){
+      var suffix = CHANNEL_TARGET_SUFFIX_[channelTypeFilter.trim()];
+      if (!suffix || !chPrefix) return 0;     // no plan column for this channel / metric -> no plan (not the blended one)
+      return tfield(row, chPrefix + suffix);
+    }
+    return tfield(row, metricKey);
+  }
+
+  var RATIO_DENOM = { cpl:'leads', cpmql:'mql', cpo:'orders' };
+
+  function monthlyRatioTarget(metricKey, jy, jmIdx){
+    var denomKey = RATIO_DENOM[metricKey];
+    var c = monthlyTargetFor('cost', jy, jmIdx);
+    var den = monthlyTargetFor(denomKey, jy, jmIdx);
+    return den ? c/den : 0;
+  }
+
+  // Target for an arbitrary [fromISO, toISO] date range (any length — days, weeks, months). Each
+  // touched month contributes its target prorated to how many of its days fall in the range; rate
+  // metrics (isRatio) re-derive the rate from the day-weighted cost and denominator plans, so a window that
+  // spans two months blends them by days (inside one month it is just that month's rate). Shared by periodTargetInfo's "custom" preset and the
+  // trend chart's forecast bucket — same math, different callers.
+  function targetForDateRange(metricKey, fromISO, toISO){
+    var isRatio = !!RATIO_DENOM[metricKey];
+    var df = dateFromISO(fromISO), dt = dateFromISO(toISO);
+    var jf = toJalaali(df.getUTCFullYear(), df.getUTCMonth()+1, df.getUTCDate());
+    var jt = toJalaali(dt.getUTCFullYear(), dt.getUTCMonth()+1, dt.getUTCDate());
+    var costSum = 0, denSum = 0, fullSum = 0;
+    var cy = jf.jy, cm = jf.jm;
+    while (cy < jt.jy || (cy === jt.jy && cm <= jt.jm)){
+      var dim = daysInJalaliMonth(cy, cm);
+      var startDay = (cy === jf.jy && cm === jf.jm) ? jf.jd : 1;
+      var endDay = (cy === jt.jy && cm === jt.jm) ? jt.jd : dim;
+      var frac = (endDay-startDay+1)/dim;
+      if (isRatio){
+        costSum += monthlyTargetFor('cost', cy, cm) * frac;
+        denSum += monthlyTargetFor(RATIO_DENOM[metricKey], cy, cm) * frac;
+      } else {
+        fullSum += monthlyTargetFor(metricKey, cy, cm) * frac;
+      }
+      cm++; if (cm > 12){ cm = 1; cy++; }
+    }
+    return isRatio ? (denSum ? costSum/denSum : 0) : fullSum;
+  }
+
+  // Target for the CURRENT date filter: the plan for exactly the days in the selected window, summed across
+  // whichever months it touches (MTD = the days elapsed so far, not the whole month; Last 7/30 days crossing a
+  // month boundary use both months' plans). Tiles compare actuals against THIS, so Attainment is
+  // like-for-like with the dates being viewed.
+  function periodTargetInfo(metricKey){
+    var range = dateRangeFor(dateFilter);
+    if (!range) return null;
+    return { target: targetForDateRange(metricKey, range.from, range.to) };
+  }
+
+  var LOWER_BETTER = { cost:1, cpl:1, cpmql:1, cpo:1 };
+
+  function statChip(label, ratio, lowerBetter){
+    if (ratio === null || !isFinite(ratio)) return '<span class="stat-chip neutral">'+label+' —</span>';
+    var cls;
+    var good = lowerBetter ? ratio <= 1 : ratio >= 1;
+    var nearMiss = lowerBetter ? (ratio > 1 && ratio <= 1.1) : (ratio >= 0.9 && ratio < 1);
+    cls = good ? 'good' : (nearMiss ? 'warn' : 'bad');
+    return '<span class="stat-chip '+cls+'">'+label+' '+Math.round(ratio*100)+'%</span>';
+  }
+
+  function dateRangeFor(preset){
+    if (!anchorISO) return null;
+    if (preset === 'lastday') return { from: anchorISO, to: anchorISO };
+    if (preset === 'last7') return { from: isoAddDays(anchorISO,-6), to: anchorISO };
+    if (preset === 'last30') return { from: isoAddDays(anchorISO,-29), to: anchorISO };
+    if (preset === 'mtd' || preset === 'qtd'){
+      var d = dateFromISO(anchorISO);
+      var j = toJalaali(d.getUTCFullYear(), d.getUTCMonth()+1, d.getUTCDate());
+      var startMonth = preset === 'mtd' ? j.jm : (Math.floor((j.jm-1)/3)*3 + 1);
+      var g = toGregorian(j.jy, startMonth, 1);
+      return { from: isoFromParts(g.gy, g.gm, g.gd), to: anchorISO };
+    }
+    if (preset === 'custom'){
+      var from = customFrom || anchorISO, to = customTo || anchorISO;
+      if (from > to){ var tmp = from; from = to; to = tmp; }
+      return { from: from, to: to };
+    }
+    return { from: anchorISO, to: anchorISO };
+  }
+
+  // ---------- Custom-range Jalali (Shamsi) picker ----------
+  // Native <input type="date"> has no Jalali calendar in any browser, so the custom-range picker is
+  // built from three plain selects (Year/Month/Day) instead, reusing the same toJalaali/toGregorian
+  // conversion the rest of the app already uses for display labels.
+  function fillSelect(el, options, selectedValue){
+    el.innerHTML = '';
+    options.forEach(function(o){
+      var opt = document.createElement('option');
+      opt.value = o[0]; opt.textContent = o[1];
+      el.appendChild(opt);
+    });
+    el.value = selectedValue;
+  }
+
+  function populateJalaliPickers(){
+    if (!anchorISO || !minISO) return;
+    var dMin = dateFromISO(minISO), dMax = dateFromISO(anchorISO);
+    var jMin = toJalaali(dMin.getUTCFullYear(), dMin.getUTCMonth()+1, dMin.getUTCDate());
+    var jMax = toJalaali(dMax.getUTCFullYear(), dMax.getUTCMonth()+1, dMax.getUTCDate());
+    var years = [];
+    for (var y = jMin.jy; y <= jMax.jy; y++) years.push([y, y]);
+    var months = JMONTHS_FULL.map(function(name, i){ return [i+1, name]; });
+
+    ['from','to'].forEach(function(prefix){
+      var ySel = els[prefix+'Y'], mSel = els[prefix+'M'];
+      var already = ySel.options.length > 0;
+      fillSelect(ySel, years, already ? ySel.value : jMax.jy);
+      fillSelect(mSel, months, already ? mSel.value : jMax.jm);
+      populateDayOptions(prefix, already ? null : jMax.jd);
+    });
+    if (!customFrom) customFrom = readJalaliDate('from');
+    if (!customTo) customTo = readJalaliDate('to');
+  }
+
+  function populateDayOptions(prefix, forceDay){
+    var ySel = els[prefix+'Y'], mSel = els[prefix+'M'], dSel = els[prefix+'D'];
+    var jy = parseInt(ySel.value, 10), jm = parseInt(mSel.value, 10);
+    var n = daysInJalaliMonth(jy, jm);
+    var prevDay = forceDay || parseInt(dSel.value, 10) || 1;
+    if (prevDay > n) prevDay = n;
+    var days = [];
+    for (var d = 1; d <= n; d++) days.push([d, d]);
+    fillSelect(dSel, days, prevDay);
+  }
+
+  // ---------- Forecast (checkbox on the trend chart) ----------
+  // Weekly chart only, and only ONE future bucket: the Jalali week right after the latest data. The
+  // reference for pace is fixed — always the 14 days ending at the latest data day — so the forecast does
+  // NOT move when the date filter changes; it only changes with new data, the channel filter, or metric.
+  var FORECAST_GRANULARITIES_ = { weekly:1 };
+  var FORECAST_REFERENCE_DAYS_ = 14;
+
+  // First/last day and label of the week that follows the one containing the latest data day.
+  function nextBucket(){
+    if (!anchorISO) return null;
+    var lastKey = bucketDate(anchorISO, 'weekly').key;
+    var from = anchorISO;
+    do { from = isoAddDays(from, 1); } while (bucketDate(from, 'weekly').key === lastKey);
+    var b = bucketDate(from, 'weekly'), to = from;
+    while (bucketDate(isoAddDays(to, 1), 'weekly').key === b.key) to = isoAddDays(to, 1);
+    return { from: from, to: to, label: b.label };
+  }
+
+  // The formula: pace = actual / plan over the past two weeks (14 days ending at the latest data, honoring
+  // the channel filter but NOT the date filter); forecast = next week's own plan x that pace. Returns a
+  // reason instead of a made-up number when a plan is missing.
+  function computeForecast(metricKey){
+    var range = dateRangeFor(dateFilter);
+    if (!range || range.to !== anchorISO) return { ok:false, reason:'Forecast needs a range that ends at the latest data' };
+    var nb = nextBucket();
+    var refFrom = isoAddDays(anchorISO, -(FORECAST_REFERENCE_DAYS_ - 1));
+    var refPlanned = targetForDateRange(metricKey, refFrom, anchorISO);
+    if (!refPlanned) return { ok:false, reason:'No plan for the past two weeks' };
+    var refRows = RAW.rows.filter(function(row){
+      var d = field(row,'date');
+      return d >= refFrom && d <= anchorISO && (!channelTypeFilter || field(row,'channelType') === channelTypeFilter) && (!brandFilter || field(row,'brand') === brandFilter) && smMatch(row);
+    });
+    var pace = computeTotals(refRows)[metricKey] / refPlanned;
+    var planned = targetForDateRange(metricKey, nb.from, nb.to);
+    if (!planned) return { ok:false, reason:'No plan for ' + nb.label };
+    return { ok:true, bucket: nb, pace: pace, planned: planned, forecast: planned * pace };
+  }
+
+  function readJalaliDate(prefix){
+    var jy = parseInt(els[prefix+'Y'].value, 10), jm = parseInt(els[prefix+'M'].value, 10), jd = parseInt(els[prefix+'D'].value, 10);
+    var g = toGregorian(jy, jm, jd);
+    return isoFromParts(g.gy, g.gm, g.gd);
+  }
+
+  function onCustomDateChange(prefix){
+    populateDayOptions(prefix);
+    var iso = readJalaliDate(prefix);
+    if (prefix === 'from') customFrom = iso; else customTo = iso;
+    renderAll();
+  }
+
+  // ---------- Source / Medium filter (searchable combobox) ----------
+  // Type to search, pick from the list, or press Enter to keep every combo that contains what you typed
+  // (e.g. "bale" = all Bale sources and mediums). The list holds each "Source / Medium" pair present in the
+  // loaded data — the same keys the Breakdown table uses for its Source / Medium grouping.
+  var smFilter = null;   // null = all | { mode:'exact', value:'Source / Medium' } | { mode:'contains', value:'lowercase', text:'as typed' }
+  var smOptions = [];
+  function smKey(row){ return (field(row,'source') || '(not set)') + ' / ' + (field(row,'medium') || '(not set)'); }
+  function smMatch(row){
+    if (!smFilter) return true;
+    var k = smKey(row);
+    return smFilter.mode === 'exact' ? k === smFilter.value : k.toLowerCase().indexOf(smFilter.value) !== -1;
+  }
+  var smEls = null, smActive = -1, smTyped = false, smItems = [], smOpen = false;
+  function smLabel(){ return !smFilter ? '' : (smFilter.mode === 'exact' ? smFilter.value : 'contains: ' + smFilter.text); }
+  function smSetOpen(v){
+    smOpen = v; smEls.list.hidden = !v; smEls.input.setAttribute('aria-expanded', v ? 'true' : 'false');
+    if (v) smRender();
+  }
+  function smRender(){
+    var raw = smTyped ? smEls.input.value.trim() : '';
+    var q = raw.toLowerCase();
+    var items = [];
+    if (!smTyped) items.push({ kind:'all', label:'All sources / mediums' });
+    else if (q){
+      var n = 0; smOptions.forEach(function(o){ if (o.toLowerCase().indexOf(q) !== -1) n++; });
+      items.push({ kind:'contains', label:'All matching \u201c' + raw + '\u201d', meta: n + (n === 1 ? ' combo' : ' combos'), q:q, text:raw });
+    }
+    var shown = 0, more = 0;
+    smOptions.forEach(function(o){
+      if (q && o.toLowerCase().indexOf(q) === -1) return;
+      if (shown >= 200){ more++; return; }
+      items.push({ kind:'exact', label:o }); shown++;
+    });
+    smItems = items;
+    smActive = (smTyped && q) ? 0 : -1;
+    if (!smTyped && smFilter && smFilter.mode === 'exact'){ for (var i = 0; i < items.length; i++) if (items[i].kind === 'exact' && items[i].label === smFilter.value) smActive = i; }
+    smEls.list.innerHTML = '';
+    items.forEach(function(it, i){
+      var li = document.createElement('li');
+      li.setAttribute('role', 'option'); li.dataset.i = i; li.id = 'sm-opt-' + i;
+      var span = document.createElement('span'); span.textContent = it.label; li.appendChild(span);
+      if (it.meta){ var m = document.createElement('span'); m.className = 'meta'; m.textContent = it.meta; li.appendChild(m); }
+      var sel = (it.kind === 'exact' && smFilter && smFilter.mode === 'exact' && smFilter.value === it.label) || (it.kind === 'all' && !smFilter);
+      li.setAttribute('aria-selected', sel ? 'true' : 'false');
+      if (i === smActive) li.classList.add('active');
+      smEls.list.appendChild(li);
+    });
+    if (!items.length || (items.length === 1 && items[0].kind === 'contains')){
+      var e = document.createElement('li'); e.className = 'note'; e.textContent = 'No matching source / medium'; smEls.list.appendChild(e);
+    }
+    if (more){ var mo = document.createElement('li'); mo.className = 'note'; mo.textContent = '+' + more + ' more \u2014 keep typing to narrow'; smEls.list.appendChild(mo); }
+  }
+  function smMove(delta){
+    if (!smItems.length) return;
+    smActive = (smActive + delta + smItems.length) % smItems.length;
+    var lis = smEls.list.querySelectorAll('li[role=option]');
+    for (var i = 0; i < lis.length; i++) lis[i].classList.toggle('active', i === smActive);
+    if (lis[smActive]){ lis[smActive].scrollIntoView({ block:'nearest' }); smEls.input.setAttribute('aria-activedescendant', lis[smActive].id); }
+  }
+  function smApply(it){
+    if (!it) return;
+    if (it.kind === 'all') smFilter = null;
+    else if (it.kind === 'exact') smFilter = { mode:'exact', value:it.label };
+    else smFilter = { mode:'contains', value:it.q, text:it.text };
+    smTyped = false; smEls.input.value = smLabel(); smEls.clear.hidden = !smFilter;
+    smSetOpen(false);
+    renderAll();
+  }
+  function smInit(){
+    smEls = { input: document.getElementById('sm-input'), list: document.getElementById('sm-list'), clear: document.getElementById('sm-clear') };
+    smEls.input.addEventListener('focus', function(){ smTyped = false; smEls.input.select(); smSetOpen(true); });
+    smEls.input.addEventListener('click', function(){ if (!smOpen) smSetOpen(true); });
+    smEls.input.addEventListener('input', function(){ smTyped = true; smSetOpen(true); });
+    smEls.input.addEventListener('keydown', function(ev){
+      if (ev.key === 'ArrowDown'){ ev.preventDefault(); if (!smOpen) smSetOpen(true); else smMove(1); }
+      else if (ev.key === 'ArrowUp'){ ev.preventDefault(); if (!smOpen) smSetOpen(true); else smMove(-1); }
+      else if (ev.key === 'Enter'){ ev.preventDefault(); if (smOpen && smActive >= 0) smApply(smItems[smActive]); else if (smOpen && smTyped && smItems.length) smApply(smItems[0]); }
+      else if (ev.key === 'Escape'){ smTyped = false; smEls.input.value = smLabel(); smSetOpen(false); }
+    });
+    smEls.input.addEventListener('blur', function(){ smTyped = false; smEls.input.value = smLabel(); smSetOpen(false); });
+    smEls.list.addEventListener('mousedown', function(ev){
+      ev.preventDefault(); // keep focus in the input so blur doesn't close the list before the pick lands
+      var li = ev.target.closest('li[role=option]'); if (li) smApply(smItems[+li.dataset.i]);
+    });
+    smEls.clear.addEventListener('click', function(){ smApply({ kind:'all' }); });
+  }
+  function refreshSourceMedium(){
+    if (!smEls) smInit();
+    var seen = {};
+    RAW.rows.forEach(function(row){ seen[smKey(row)] = true; });
+    smOptions = Object.keys(seen).sort(function(a, b){ return a.toLowerCase() < b.toLowerCase() ? -1 : (a.toLowerCase() > b.toLowerCase() ? 1 : 0); });
+    if (smFilter && smFilter.mode === 'exact' && !seen[smFilter.value]) smFilter = null; // e.g. after switching line
+    smEls.input.value = smLabel(); smEls.clear.hidden = !smFilter;
+  }
+
+  function filteredRows(){
+    var range = dateRangeFor(dateFilter);
+    if (!range || !RAW) return [];
+    return RAW.rows.filter(function(row){
+      var d = field(row,'date');
+      if (d < range.from || d > range.to) return false;
+      if (channelTypeFilter && field(row,'channelType') !== channelTypeFilter) return false;
+      if (!smMatch(row)) return false;
+      if (brandFilter && field(row,'brand') !== brandFilter) return false;
+      return true;
+    });
+  }
+
+  // ---------- Motion ----------
+  // Every animation here answers a question: did the tab change (indicator), did the numbers change
+  // (count-up), did new tiles appear (stagger)? Nothing animates just to animate, and everything here
+  // collapses to an instant state change under prefers-reduced-motion.
+  var REDUCE_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var HAS_GSAP = typeof gsap !== 'undefined';
+
+  function animateTileEntrance(container){
+    if (REDUCE_MOTION || !HAS_GSAP) return;
+    var items = container.querySelectorAll('.tile');
+    gsap.fromTo(items, { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .35, ease: 'power2.out', stagger: .035 });
+  }
+
+  // Counts from the tile's previous value to its new one instead of jumping, so a filter change reads
+  // as "this number moved" rather than a full re-paint — cheap comprehension win on a numbers-heavy page.
+  function animateValue(el, toValue, fmtFn){
+    if (!el) return;
+    var fromValue = parseFloat(el.dataset.rawValue || '0') || 0;
+    // Kill any in-flight tween on this element first — without this, two renders landing within the
+    // same ~500ms window (e.g. a tab switch overlapping the 5-minute auto-refresh) race each other and
+    // can leave the displayed number stuck mid-transition even though the underlying data is correct.
+    if (el._countTween) { el._countTween.kill(); el._countTween = null; }
+    if (REDUCE_MOTION || !HAS_GSAP || fromValue === toValue){
+      el.textContent = fmtFn(toValue);
+      el.dataset.rawValue = toValue;
+      return;
+    }
+    var proxy = { v: fromValue };
+    el._countTween = gsap.to(proxy, {
+      v: toValue, duration: .5, ease: 'power2.out',
+      onUpdate: function(){ el.textContent = fmtFn(proxy.v); },
+      onComplete: function(){ el.textContent = fmtFn(toValue); el._countTween = null; }
+    });
+    el.dataset.rawValue = toValue;
+  }
+
+  function positionTabIndicator(animate){
+    var activeBtn = document.querySelector('.tab-btn.active');
+    var bar = document.getElementById('tab-bar');
+    var indicator = document.getElementById('tab-indicator');
+    if (!activeBtn || !bar || !indicator) return;
+    var left = activeBtn.offsetLeft, width = activeBtn.offsetWidth;
+    if (animate && !REDUCE_MOTION && HAS_GSAP){
+      gsap.to(indicator, { left: left, width: width, duration: .28, ease: 'power3.out' });
+    } else {
+      indicator.style.left = left + 'px';
+      indicator.style.width = width + 'px';
+    }
+  }
+  window.addEventListener('resize', function(){ positionTabIndicator(false); });
+
+  function showSettingsPanel(){
+    var el = els.settingsPanel;
+    el.hidden = false;
+    if (REDUCE_MOTION) return;
+    el.animate(
+      [{ opacity: 0, transform: 'scale(.96) translateY(-4px)' }, { opacity: 1, transform: 'scale(1) translateY(0)' }],
+      { duration: 180, easing: 'cubic-bezier(.23,1,.32,1)' }
+    );
+  }
+  function hideSettingsPanel(){
+    var el = els.settingsPanel;
+    if (REDUCE_MOTION){ el.hidden = true; return; }
+    var anim = el.animate(
+      [{ opacity: 1, transform: 'scale(1) translateY(0)' }, { opacity: 0, transform: 'scale(.97) translateY(-3px)' }],
+      { duration: 140, easing: 'cubic-bezier(.4,0,1,1)' }
+    );
+    anim.onfinish = function(){ el.hidden = true; };
+  }
+
+  // ---------- Rendering ----------
+  function syncDateFilterSelect(){
+    els.dateFilterSelect.value = dateFilter;
+    els.customRange.hidden = (dateFilter !== 'custom');
+  }
+
+  function renderFilterOptions(){
+    var current = els.channelTypeSelect.value;
+    var list = CHANNEL_TYPES.length ? CHANNEL_TYPES.slice() : (function(){
+      var types = {};
+      RAW.rows.forEach(function(row){ var v = field(row,'channelType'); if (v) types[v] = true; });
+      return Object.keys(types).sort();
+    })();
+    els.channelTypeSelect.innerHTML = '<option value="">Channel Type: All</option>';
+    list.forEach(function(t){
+      var o = document.createElement('option'); o.value = t; o.textContent = t;
+      els.channelTypeSelect.appendChild(o);
+    });
+    els.channelTypeSelect.value = current;
+
+    // No canonical Brand list endpoint (only E-visit's Data tab even has the column) — same fallback
+    // used above for Channel Type when no server-provided list exists: scan what's actually loaded.
+    var currentBrand = els.brandSelect.value;
+    var brands = {};
+    RAW.rows.forEach(function(row){ var v = field(row,'brand'); if (v) brands[v] = true; });
+    var brandList = Object.keys(brands).sort();
+    els.brandSelect.innerHTML = '<option value="">Brand: All</option>';
+    brandList.forEach(function(b){
+      var o = document.createElement('option'); o.value = b; o.textContent = b;
+      els.brandSelect.appendChild(o);
+    });
+    els.brandSelect.value = currentBrand;
+
+    if (!els.trendMetricSelect.options.length){
+      ['leads','mql','orders','cost','sessions','impressions','clicks','cpl','cpo','cpmql'].forEach(function(m){
+        var o = document.createElement('option'); o.value = m; o.textContent = METRIC_LABELS[m];
+        els.trendMetricSelect.appendChild(o);
+      });
+      els.trendMetricSelect.value = trendMetric;
+    }
+  }
+
+  function fmtNum(n){ return Math.round(n).toLocaleString('en-US'); }
+  function fmtRatio(n){ return isFinite(n) && n > 0 ? fmtNum(n) : '—'; }
+
+  function computeTotals(rows){
+    var t = { cost:0, impressions:0, clicks:0, sessions:0, sms:0 };
+    TYPED_METRICS.forEach(function(m){ t[m] = 0; });
+    rows.forEach(function(row){
+      t.impressions += field(row,'impressions')||0;
+      t.clicks += field(row,'clicks')||0;
+      t.sessions += field(row,'sessions')||0;
+      t.sms += field(row,'sms')||0;
+      TYPED_METRICS.forEach(function(m){ t[m] += metricValue(row,m); });
+    });
+    t.cpl = t.leads ? t.cost/t.leads : 0;
+    t.cpo = t.orders ? t.cost/t.orders : 0;
+    t.cpmql = t.mql ? t.cost/t.mql : 0;
+    return t;
+  }
+
+  var TARGETABLE_METRICS = { cost:1, impressions:1, clicks:1, sessions:1, leads:1, mql:1, orders:1, sms:1, cpl:1, cpo:1, cpmql:1 };
+
+  function renderTiles(rows){
+    var t = computeTotals(rows);
+    var order = ['cost','impressions','clicks','sessions','leads','mql','orders','sms','cpl','cpo','cpmql'];
+    els.tiles.innerHTML = '';
+    order.forEach(function(k){
+      var actual = t[k];
+      var alwaysShow = (k === 'orders' || k === 'cpo'); // the two numbers the team always looks for
+      if (!actual && !alwaysShow) return; // hide tiles with no data for the current filter — keeps the grid focused
+      var isDerived = (k==='cpl'||k==='cpo'||k==='cpmql');
+      var tile = document.createElement('div');
+      tile.className = 'tile' + (isDerived ? ' derived' : '');
+      var html = '<div class="label">'+METRIC_LABELS[k]+'</div>'+
+        '<div class="value tabular"></div>';
+
+      var info = TARGETABLE_METRICS[k] ? periodTargetInfo(k) : null;
+      if (!actual && alwaysShow){
+        // nothing recorded: say so instead of showing a 0% "attainment" (a zero CPO would read as perfect)
+        html += '<div class="target-line">' + (k === 'cpo' ? (t.cost ? 'No orders in this range' : 'No cost recorded in this range') : 'No orders in this range') + '</div>';
+      } else if (info && info.target > 0){
+        var attain = actual / info.target;
+        var variance = attain - 1;
+        html += '<div class="target-line">'+(k==='cost'?'Budget':'Target')+' '+fmtNum(info.target)+'</div>';
+        html += '<div class="stat-chips">' + statChip('Attain', attain, LOWER_BETTER[k]);
+        html += '<span class="stat-chip neutral">Var '+(variance>=0?'+':'')+Math.round(variance*100)+'%</span></div>';
+      } else {
+        html += '<div class="target-line">No target set</div>';
+      }
+      tile.innerHTML = html;
+      els.tiles.appendChild(tile);
+      animateValue(tile.querySelector('.value'), actual, isDerived ? fmtRatio : fmtNum);
+    });
+    animateTileEntrance(els.tiles);
+  }
+
+  // Buckets a date into a daily/weekly/monthly/yearly key+label. Weekly reuses the same Jalali
+  // week convention used everywhere else in this system (weeks 1-4 = days 1-7/8-14/15-21/22-28,
+  // week 5 = the tail of the month) — weeks never span a month boundary, which keeps target
+  // proration simple (each bucket belongs to exactly one month's target).
+  function bucketDate(iso, granularity){
+    var d = dateFromISO(iso);
+    var j = toJalaali(d.getUTCFullYear(), d.getUTCMonth()+1, d.getUTCDate());
+    if (granularity === 'weekly'){
+      var week = j.jd<=7?1:j.jd<=14?2:j.jd<=21?3:j.jd<=28?4:5;
+      return { type:'weekly', key: j.jy+'-'+j.jm+'-W'+week, label: JMONTHS[j.jm-1]+' W'+week, jy:j.jy, jm:j.jm, week:week };
+    }
+    if (granularity === 'monthly') return { type:'monthly', key: j.jy+'-'+j.jm, label: JMONTHS[j.jm-1]+' '+j.jy, jy:j.jy, jm:j.jm };
+    if (granularity === 'yearly') return { type:'yearly', key: String(j.jy), label: String(j.jy), jy:j.jy };
+    return { type:'daily', key: iso, label: jalaaliLabel(iso), jy:j.jy, jm:j.jm, jd:j.jd };
+  }
+
+  // Per-bucket target: daily/weekly get the month's target prorated to that bucket's day-count
+  // (ratio metrics never prorate — same convention as periodTargetInfo); monthly gets the full
+  // month target as-is; yearly sums (or, for ratios, re-derives from summed cost/denominator)
+  // across all 12 months.
+  function bucketTargetFor(bucket, metricKey, isRatio){
+    if (bucket.type === 'yearly'){
+      if (isRatio){
+        var cs=0, ds=0;
+        for (var m=1;m<=12;m++){ cs+=monthlyTargetFor('cost',bucket.jy,m); ds+=monthlyTargetFor(RATIO_DENOM[metricKey],bucket.jy,m); }
+        return ds ? cs/ds : 0;
+      }
+      var s=0; for (var m2=1;m2<=12;m2++) s+=monthlyTargetFor(metricKey,bucket.jy,m2);
+      return s;
+    }
+    if (bucket.type === 'monthly'){
+      return isRatio ? monthlyRatioTarget(metricKey, bucket.jy, bucket.jm) : monthlyTargetFor(metricKey, bucket.jy, bucket.jm);
+    }
+    if (isRatio) return monthlyRatioTarget(metricKey, bucket.jy, bucket.jm);
+    var dim = daysInJalaliMonth(bucket.jy, bucket.jm);
+    var daysInBucket = bucket.type === 'weekly' ? (bucket.week === 5 ? (dim-28) : 7) : 1;
+    return monthlyTargetFor(metricKey, bucket.jy, bucket.jm) * daysInBucket / dim;
+  }
+
+  function renderTrend(rows){
+    var range = dateRangeFor(dateFilter);
+    if (!range) return;
+    var isRatioMetric = trendMetric==='cpl'||trendMetric==='cpo'||trendMetric==='cpmql';
+    var buckets = {}, order = [];
+    var cur = range.from;
+    while (cur <= range.to){
+      var b0 = bucketDate(cur, trendGranularity);
+      if (!buckets[b0.key]){ buckets[b0.key] = { label:b0.label, jy:b0.jy, jm:b0.jm, jd:b0.jd, week:b0.week, type:b0.type, value:0, cost:0, count:0 }; order.push(b0.key); }
+      cur = isoAddDays(cur,1);
+    }
+    rows.forEach(function(row){
+      var d = field(row,'date');
+      var b = bucketDate(d, trendGranularity);
+      var bucket = buckets[b.key];
+      if (!bucket) return; // outside the selected range
+      if (isRatioMetric){
+        bucket.cost += metricValue(row,'cost');
+        var denom = trendMetric==='cpl' ? 'leads' : (trendMetric==='cpo' ? 'orders' : 'mql');
+        bucket.count += metricValue(row,denom);
+      } else if (['impressions','clicks','sessions'].indexOf(trendMetric) !== -1){
+        bucket.value += field(row,trendMetric)||0;
+      } else {
+        bucket.value += metricValue(row,trendMetric);
+      }
+    });
+    var labels = [], values = [], targetValues = [];
+    var isTargetable = !!TARGETABLE_METRICS[trendMetric];
+    order.forEach(function(key){
+      var b = buckets[key];
+      labels.push(b.label);
+      values.push(isRatioMetric ? (b.count ? Math.round(b.cost/b.count) : 0) : b.value);
+      if (isTargetable) targetValues.push(bucketTargetFor(b, trendMetric, isRatioMetric));
+    });
+    // Forecast (checkbox, top right of the chart): ONE extra bucket after the real ones — the next week. Actual/Target stay null there (Chart.js breaks the line on
+    // null) and a separate "Forecast" dataset holds the single point. The checkbox is only available for
+    // metrics that have a plan, on the Weekly chart; when it's on but there's nothing to forecast from (no
+    // plan entered), the reason is shown next to it instead of silently drawing nothing.
+    var forecastValues = null;
+    var canForecast = !!TARGETABLE_METRICS[trendMetric] && !!FORECAST_GRANULARITIES_[trendGranularity];
+    els.forecastToggle.disabled = !canForecast;
+    els.forecastToggleLabel.classList.toggle('disabled', !canForecast);
+    els.forecastToggleLabel.title = canForecast ? '' : 'Forecast is available on the Weekly chart, for metrics that have a plan (target)';
+    els.forecastHint.textContent = '';
+    if (forecastOn && canForecast){
+      var fc = computeForecast(trendMetric);
+      if (fc.ok){
+        labels.push(fc.bucket.label);
+        values.push(null);
+        targetValues.push(null);
+        forecastValues = labels.map(function(){ return null; });
+        forecastValues[forecastValues.length-1] = fc.forecast;
+        els.forecastHint.textContent = 'Pace over the past 2 weeks: ' + Math.round(fc.pace*100) + '%';
+      } else {
+        els.forecastHint.textContent = fc.reason;
+      }
+    }
+    var ctx = document.getElementById('trend-chart');
+    var textColor = getComputedStyle(document.body).getPropertyValue('--text-dim').trim();
+    var labelColor = getComputedStyle(document.body).getPropertyValue('--text').trim();
+    var gridColor = getComputedStyle(document.body).getPropertyValue('--border').trim();
+    var accent = getComputedStyle(document.body).getPropertyValue('--accent').trim();
+    var faint = getComputedStyle(document.body).getPropertyValue('--text-faint').trim();
+    var warn = getComputedStyle(document.body).getPropertyValue('--warn').trim();
+    var fmtLabel = isRatioMetric ? fmtRatio : fmtNum;
+    // A 1-2 point range (e.g. "Last day with data") renders as a near-invisible dot at the default
+    // radius — size points up so a sparse range is still clearly visible, not just technically present.
+    // Markers fade out only past a genuinely dense range (60+ points, e.g. daily-granularity QTD).
+    var pointRadius = labels.length<=2 ? 7 : (labels.length>60 ? 0 : 2);
+    var showLabels = labels.length <= 60; // just controls top padding headroom below
+    var hasTarget = targetValues.some(function(v){ return v!=null && v>0; });
+    var datasets = [{ label:'Actual', data: values, borderColor: accent, backgroundColor: accent+'33',
+      fill: true, tension: .3, pointRadius: pointRadius }];
+    if (hasTarget){
+      datasets.push({ label: trendMetric==='cost'?'Budget':'Target', data: targetValues,
+        borderColor: faint, borderDash:[5,4], borderWidth:1.5, pointRadius: labels.length<=2?5:0, fill:false, tension:0,
+        datalabels:{ display:false } });
+    }
+    if (forecastValues){
+      datasets.push({ label:'Forecast', data: forecastValues,
+        borderColor: warn, backgroundColor: warn, pointRadius:7, pointStyle:'rectRot', showLine:false,
+        datalabels:{ display:true, color: warn } });
+    }
+    if (charts.trend) charts.trend.destroy();
+    charts.trend = new Chart(ctx, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: { responsive:true, maintainAspectRatio:false,
+        layout:{ padding:{ top: showLabels ? 20 : 6 } },
+        plugins:{ legend:{ display: hasTarget || !!forecastValues, position:'top', align:'end',
+            labels:{ color:textColor, boxWidth:14, boxHeight:2, padding:12,
+              font:{ family:"'Public Sans', sans-serif", size:10.5 } } },
+          datalabels:{ display: 'auto', color: labelColor, anchor:'end', align:'top', offset:6,
+            font:{ family: "'IBM Plex Mono', monospace", size: 10, weight: '600' },
+            formatter: function(v){ return v==null?'':fmtLabel(v); } } },
+        scales:{ x:{ ticks:{ color:textColor, maxRotation:0, autoSkip:true }, grid:{ display:false } },
+                 y:{ ticks:{ color:textColor }, grid:{ color:gridColor }, beginAtZero:true } } }
+    });
+  }
+
+  var DIM_LABEL = { channelType:'Channel Type', brand:'Brand', sourceMedium:'Source / Medium', campaign:'Campaign', landingPage:'Landing Page', copy:'Copy' };
+
+  function groupKey(row, dim){
+    if (dim === 'sourceMedium'){
+      var s = field(row,'source')||'(not set)', m = field(row,'medium')||'(not set)';
+      return s+' / '+m;
+    }
+    var v = field(row, dim);
+    return v || '(not set)';
+  }
+
+  // Generic group aggregator: keyFn returns null to exclude a row from grouping entirely.
+  function computeGroupStats(rows, keyFn, opts){
+    opts = opts || {};
+    var groups = {};
+    rows.forEach(function(row){
+      var key = keyFn(row);
+      if (key === null) return;
+      if (!groups[key]) groups[key] = { sessions:0, leads:0, mql:0, orders:0, cost:0 };
+      var g = groups[key];
+      if (opts.sessions) g.sessions += field(row,'sessions')||0;
+      g.leads += metricValue(row,'leads');
+      g.mql += metricValue(row,'mql');
+      g.orders += metricValue(row,'orders');
+      g.cost += metricValue(row,'cost');
+    });
+    var list = Object.keys(groups).map(function(k){
+      var g = groups[k];
+      g.name = k;
+      g.cpl = g.leads ? g.cost/g.leads : 0;
+      g.cpo = g.orders ? g.cost/g.orders : 0;
+      g.sessLead = g.sessions ? g.leads/g.sessions : 0;
+      g.mqlOrder = g.mql ? g.orders/g.mql : 0;
+      return g;
+    });
+    list.sort(function(a,b){
+      if (!a.leads && !b.leads) return b.cost - a.cost;
+      if (!a.leads) return 1;
+      if (!b.leads) return -1;
+      return a.cpl - b.cpl;
+    });
+    return list;
+  }
+
+  function drawBarChart(canvasId, labels, values, chartKey){
+    var ctx = document.getElementById(canvasId);
+    var textColor = getComputedStyle(document.body).getPropertyValue('--text-dim').trim();
+    var gridColor = getComputedStyle(document.body).getPropertyValue('--border').trim();
+    var accent = getComputedStyle(document.body).getPropertyValue('--accent').trim();
+    if (charts[chartKey]) charts[chartKey].destroy();
+    charts[chartKey] = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ data: values, backgroundColor: accent }] },
+      options: { indexAxis: 'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false} },
+        scales:{ x:{ ticks:{ color:textColor }, grid:{ color:gridColor }, beginAtZero:true },
+                 y:{ ticks:{ color:textColor, autoSkip:false }, grid:{ display:false } } } }
+    });
+  }
+
+  // Sorts a copy of the group list by breakdownSort.key/dir — 'name' compares case-insensitively,
+  // everything else numerically. Reused as-is regardless of which column was clicked.
+  function sortBreakdownList(list){
+    var key = breakdownSort.key, dir = breakdownSort.dir, mul = dir === 'asc' ? 1 : -1;
+    var sorted = list.slice();
+    sorted.sort(function(a,b){
+      if (key === 'name'){
+        var an = (a.name||'').toLowerCase(), bn = (b.name||'').toLowerCase();
+        return mul * (an<bn?-1:(an>bn?1:0));
+      }
+      return mul * (a[key] - b[key]);
+    });
+    return sorted;
+  }
+
+  function updateBreakdownHeaderIndicators(){
+    document.querySelectorAll('#breakdown-table th.sortable').forEach(function(th){
+      var active = th.dataset.sort === breakdownSort.key;
+      th.classList.toggle('sort-active', active);
+      var arrow = th.querySelector('.sort-arrow');
+      if (arrow) arrow.remove();
+      if (active){
+        var span = document.createElement('span');
+        span.className = 'sort-arrow';
+        span.textContent = breakdownSort.dir === 'asc' ? '▲' : '▼';
+        th.appendChild(span);
+      }
+    });
+  }
+
+  function renderBreakdown(rows){
+    var list = sortBreakdownList(computeGroupStats(rows, function(row){ return groupKey(row, breakdownDim); }));
+    var tbody = document.querySelector('#breakdown-table tbody');
+    tbody.innerHTML = '';
+    list.forEach(function(g, i){
+      var tr = document.createElement('tr');
+      if (!g.leads) tr.className = 'zero';
+      tr.innerHTML = '<td class="rank">'+(i+1)+'</td><td>'+escapeHtml(g.name)+'</td>'+
+        '<td class="num">'+fmtNum(g.leads)+'</td><td class="num">'+fmtNum(g.mql)+'</td>'+
+        '<td class="num">'+fmtNum(g.orders)+'</td><td class="num">'+fmtNum(g.cost)+'</td>'+
+        '<td class="num">'+fmtRatio(g.cpl)+'</td><td class="num">'+fmtRatio(g.cpo)+'</td>';
+      tbody.appendChild(tr);
+    });
+    updateBreakdownHeaderIndicators();
+  }
+
+  function fmtPct(n){ return isFinite(n) ? Math.round(n*1000)/10 + '%' : '—'; }
+
+  function renderLandingPagesTab(rows){
+    var list = computeGroupStats(rows, function(row){ return field(row,'landingPage') || '(not set)'; }, { sessions: true });
+    var tbody = document.querySelector('#lp-table tbody');
+    tbody.innerHTML = '';
+    list.forEach(function(g, i){
+      var tr = document.createElement('tr');
+      if (!g.leads) tr.className = 'zero';
+      tr.innerHTML = '<td class="rank">'+(i+1)+'</td><td>'+escapeHtml(g.name)+'</td>'+
+        '<td class="num">'+fmtNum(g.sessions)+'</td><td class="num">'+fmtNum(g.leads)+'</td>'+
+        '<td class="num">'+fmtPct(g.sessLead)+'</td><td class="num">'+fmtNum(g.mql)+'</td>'+
+        '<td class="num">'+fmtNum(g.orders)+'</td><td class="num">'+fmtNum(g.cost)+'</td>'+
+        '<td class="num">'+fmtRatio(g.cpl)+'</td><td class="num">'+fmtRatio(g.cpo)+'</td>';
+      tbody.appendChild(tr);
+    });
+    var withData = list.filter(function(g){return g.leads>0;});
+    var best = withData[0], worst = withData[withData.length-1];
+    els.lpSummary.innerHTML = best
+      ? '<b>Best:</b> '+escapeHtml(best.name)+' &middot; CPL '+fmtNum(best.cpl)+', Sess&rarr;Lead '+fmtPct(best.sessLead)+
+        (worst && worst!==best ? '&nbsp;&nbsp;&middot;&nbsp;&nbsp;<b>Weakest:</b> '+escapeHtml(worst.name)+' &middot; CPL '+fmtNum(worst.cpl) : '')
+      : 'Not enough data in this range.';
+    var top = withData.slice(0,12);
+    drawBarChart('lp-chart', top.map(function(g){return g.name;}), top.map(function(g){return g.cpl;}), 'lp');
+  }
+
+  function renderCopiesTab(rows){
+    var list = computeGroupStats(rows, function(row){
+      var copy = field(row,'copy');
+      if (!copy) return null; // sheet's own Copy breakdown only looks at rows where Copy is filled
+      var camp = field(row,'campaign') || '(not set)';
+      return camp + ' · ' + copy;
+    });
+    var tbody = document.querySelector('#cp-table tbody');
+    tbody.innerHTML = '';
+    list.forEach(function(g, i){
+      var tr = document.createElement('tr');
+      if (!g.leads) tr.className = 'zero';
+      tr.innerHTML = '<td class="rank">'+(i+1)+'</td><td>'+escapeHtml(g.name)+'</td>'+
+        '<td class="num">'+fmtNum(g.leads)+'</td><td class="num">'+fmtNum(g.mql)+'</td>'+
+        '<td class="num">'+fmtPct(g.mqlOrder)+'</td><td class="num">'+fmtNum(g.orders)+'</td>'+
+        '<td class="num">'+fmtNum(g.cost)+'</td><td class="num">'+fmtRatio(g.cpl)+'</td>';
+      tbody.appendChild(tr);
+    });
+    var withData = list.filter(function(g){return g.leads>0;});
+    var best = withData[0], worst = withData[withData.length-1];
+    els.cpSummary.innerHTML = best
+      ? '<b>Best:</b> '+escapeHtml(best.name)+' &middot; CPL '+fmtNum(best.cpl)+', MQL&rarr;Order '+fmtPct(best.mqlOrder)+
+        (worst && worst!==best ? '&nbsp;&nbsp;&middot;&nbsp;&nbsp;<b>Weakest:</b> '+escapeHtml(worst.name)+' &middot; CPL '+fmtNum(worst.cpl) : '')
+      : 'No copy-tagged rows in this range.';
+    var top = withData.slice(0,12);
+    drawBarChart('cp-chart', top.map(function(g){return g.name;}), top.map(function(g){return g.cpl;}), 'cp');
+  }
+
+  function switchTab(tab){
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    ['overview','landing','copies'].forEach(function(t){ document.getElementById('tab-'+t).hidden = (t !== tab); });
+    positionTabIndicator(true);
+    var panel = document.getElementById('tab-'+tab);
+    if (!REDUCE_MOTION && HAS_GSAP) gsap.fromTo(panel, { autoAlpha: 0, y: 6 }, { autoAlpha: 1, y: 0, duration: .25, ease: 'power2.out' });
+    renderActiveTab();
+  }
+
+  function renderActiveTab(){
+    var rows = filteredRows();
+    if (activeTab === 'overview'){ renderTiles(rows); renderTrend(rows); renderBreakdown(rows); }
+    else if (activeTab === 'landing'){ renderLandingPagesTab(rows); }
+    else if (activeTab === 'copies'){ renderCopiesTab(rows); }
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  function renderRangeLabel(){
+    var range = dateRangeFor(dateFilter);
+    if (!range) { els.rangeLabel.textContent = ''; return; }
+    els.rangeLabel.textContent = jalaaliLabel(range.from) + ' → ' + jalaaliLabel(range.to) + ' (as of latest data)';
+  }
+
+  function renderAll(){
+    syncDateFilterSelect();
+    renderRangeLabel();
+    renderActiveTab();
+  }
+
+  // ---------- Load ----------
+  function skeletonTiles(){
+    document.getElementById('tiles-section').hidden = false;
+    els.tiles.innerHTML = '';
+    for (var i=0;i<9;i++){ var s = document.createElement('div'); s.className = 'skeleton'; els.tiles.appendChild(s); }
+  }
+
+
+  // Numbers that arrive as text (pasted "1,200", Persian digits, "-", an error like #N/A) must not poison the sums:
+  // convert them here once, count what could not be read, and mention it in the status line.
+  var TEXT_FIELDS_ = { date:1, source:1, medium:1, channelType:1, campaign:1, landingPage:1, copy:1, brand:1 };
+  var coercedBad = 0;
+  function toNum(v){
+    if (typeof v === 'number') return isFinite(v) ? v : (coercedBad++, 0);
+    if (v === '' || v === null || v === undefined || v === false) return 0;
+    if (v === true) return 1;
+    var s = String(v).trim();
+    if (!s || s === '-' || s === '\u2014') return 0;
+    s = s.replace(/[\u06F0-\u06F9]/g, function(d){ return String(d.charCodeAt(0) - 0x06F0); })
+         .replace(/[\u0660-\u0669]/g, function(d){ return String(d.charCodeAt(0) - 0x0660); })
+         .replace(/[,\u066C\u066B\s]/g, '');
+    var n = parseFloat(s);
+    if (isFinite(n) && /^[-+]?\d*\.?\d+(e[-+]?\d+)?%?$/i.test(s)) return /%$/.test(s) ? n / 100 : n;
+    coercedBad++; return 0;
+  }
+  function sanitizeNumbers(raw, targets){
+    coercedBad = 0;
+    var textIdx = {}; raw.fields.forEach(function(f,i){ if (TEXT_FIELDS_[f]) textIdx[i] = true; });
+    raw.rows.forEach(function(row){ for (var j = 0; j < row.length; j++) if (!textIdx[j]) row[j] = toNum(row[j]); });
+    if (targets) targets.rows.forEach(function(row){ for (var j = 2; j < row.length; j++) row[j] = toNum(row[j]); });
+    return coercedBad;
+  }
+
+  function ingest(payload){
+    RAW = payload.raw || { fields: [], rows: [] };
+    FIELD_IDX = {};
+    RAW.fields.forEach(function(f,i){ FIELD_IDX[f] = i; });
+    anchorISO = null; minISO = null;
+    RAW.rows.forEach(function(row){
+      var d = field(row,'date');
+      if (!anchorISO || d > anchorISO) anchorISO = d;
+      if (!minISO || d < minISO) minISO = d;
+    });
+    if (anchorISO) populateJalaliPickers();
+
+    TARGETS = payload.targets || { fields: [], rows: [] };
+    TARGET_IDX = {};
+    TARGETS.fields.forEach(function(f,i){ TARGET_IDX[f] = i; });
+    var badCells = sanitizeNumbers(RAW, TARGETS);
+    TARGETS_BY_KEY = {};
+    TARGETS.rows.forEach(function(row){
+      var key = row[TARGET_IDX.year] + '|' + row[TARGET_IDX.month];
+      TARGETS_BY_KEY[key] = row;
+    });
+
+    CHANNEL_TYPES = payload.channelTypes || [];
+
+    renderFilterOptions();
+    refreshSourceMedium();
+    renderAll();
+  }
+
+  // Switching lines swaps the entire dataset out from under the page — nothing from the old line's
+  // data/targets/channel list is valid for the new one, so every derived bit of state resets.
+  function resetForLineSwitch(){
+    RAW = null; TARGETS = null; CHANNEL_TYPES = []; anchorISO = null; minISO = null;
+    customFrom = null; customTo = null; channelTypeFilter = ''; brandFilter = ''; smFilter = null;
+  }
+
+  function load(isManual){
+    var lineLabel = LINES[lineFilter].label;
+    els.emptyTitle.textContent = 'Connect to the ' + lineLabel + ' sheet';
+    var endpoint = getEndpoint(lineFilter);
+    if (!endpoint){ showOnly('empty-state'); setStatus('', 'Not connected yet'); return; }
+    showOnly('content');
+    if (isManual) skeletonTiles();
+    setStatus('', 'Loading…');
+    fetch(endpoint, { cache: 'no-store' })
+      .then(function(res){ if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function(data){
+        ingest(data);
+        showOnly('content');
+        positionTabIndicator(false);
+        setStatus('live', (RAW.rows.length) + ' rows loaded' + (coercedBad ? ' \u00b7 \u26a0 ' + coercedBad + ' cell(s) in number columns were not numbers and were read as 0 \u2014 check the Data tab' : ''));
+        var t = data.generatedAt ? new Date(data.generatedAt) : new Date();
+        els.footerTime.textContent = t.toLocaleString();
+      })
+      .catch(function(err){
+        showOnly('error-state');
+        els.errorDetail.textContent = 'The endpoint didn\'t respond (' + err.message + '). Check the URL in Settings, and that the Apps Script deployment is set to "Anyone" access and redeployed with the latest code.';
+        setStatus('error', 'Connection failed');
+      });
+  }
+
+  document.getElementById('refresh-btn').addEventListener('click', function(){ load(true); });
+  document.getElementById('settings-btn').addEventListener('click', openSettings);
+  document.getElementById('empty-settings-btn').addEventListener('click', openSettings);
+  document.getElementById('error-settings-btn').addEventListener('click', openSettings);
+  document.getElementById('error-retry').addEventListener('click', function(){ load(true); });
+  document.getElementById('close-settings').addEventListener('click', hideSettingsPanel);
+  document.getElementById('clear-endpoint').addEventListener('click', function(){
+    clearEndpoint(lineFilter); els.endpointInput.value = ''; hideSettingsPanel(); load();
+  });
+  document.getElementById('save-endpoint').addEventListener('click', function(){
+    var v = els.endpointInput.value.trim(); if (!v) return;
+    setEndpoint(lineFilter, v); hideSettingsPanel(); load(true);
+  });
+  els.lineSelect.addEventListener('change', function(){
+    lineFilter = els.lineSelect.value;
+    resetForLineSwitch();
+    load(true);
+  });
+  els.channelTypeSelect.addEventListener('change', function(){ channelTypeFilter = els.channelTypeSelect.value; renderAll(); });
+  els.brandSelect.addEventListener('change', function(){ brandFilter = els.brandSelect.value; renderAll(); });
+  els.trendMetricSelect.addEventListener('change', function(){ trendMetric = els.trendMetricSelect.value; renderTrend(filteredRows()); });
+  els.trendGranularitySelect.addEventListener('change', function(){ trendGranularity = els.trendGranularitySelect.value; renderTrend(filteredRows()); });
+  els.forecastToggle.addEventListener('change', function(){ forecastOn = els.forecastToggle.checked; renderTrend(filteredRows()); });
+  els.breakdownDimSelect.addEventListener('change', function(){ breakdownDim = els.breakdownDimSelect.value; renderBreakdown(filteredRows()); });
+  document.querySelectorAll('#breakdown-table th.sortable').forEach(function(th){
+    th.addEventListener('click', function(){
+      var key = th.dataset.sort;
+      if (breakdownSort.key === key) breakdownSort.dir = breakdownSort.dir === 'asc' ? 'desc' : 'asc';
+      else breakdownSort = { key: key, dir: BREAKDOWN_SORT_DEFAULT_DIR_[key] || 'asc' };
+      renderBreakdown(filteredRows());
+    });
+  });
+  els.dateFilterSelect.addEventListener('change', function(){ dateFilter = els.dateFilterSelect.value; renderAll(); });
+  ['fromY','fromM','fromD'].forEach(function(k){ els[k].addEventListener('change', function(){ onCustomDateChange('from'); }); });
+  ['toY','toM','toD'].forEach(function(k){ els[k].addEventListener('change', function(){ onCustomDateChange('to'); }); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.addEventListener('click', function(){ switchTab(b.dataset.tab); }); });
+
+  function openSettings(){
+    els.endpointLabel.textContent = LINES[lineFilter].label + ' endpoint URL';
+    els.endpointInput.value = getEndpoint(lineFilter);
+    showSettingsPanel();
+    els.endpointInput.focus();
+  }
+
+  load();
+  setInterval(function(){ load(false); }, 5 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
