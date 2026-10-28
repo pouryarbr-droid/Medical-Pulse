@@ -347,7 +347,7 @@
 
 </main>
 
-<footer>Refreshes automatically every 5 minutes &middot; last pulled <span id="footer-time" class="tabular">&mdash;</span></footer>
+<footer>Refreshes automatically every 5 minutes &middot; last pulled <span id="footer-time" class="tabular">&mdash;</span> &middot; version 2026-10-28</footer>
 
 <script>
 (function(){
@@ -446,6 +446,9 @@
   var dateFilter = 'last7'; // lastday | last7 | last30 | mtd | qtd | custom
   var customFrom = null, customTo = null; // ISO strings, only used when dateFilter === 'custom'
   var channelTypeFilter = '';
+  // Channel names are compared without surrounding spaces / case: Appointment's Settings list says "Organic Web " (trailing
+  // space) while its data rows say "Organic Web" — an exact compare silently showed nothing for that channel.
+  function chanKey(v){ return String(v === undefined || v === null ? '' : v).trim().toLowerCase(); }
   var brandFilter = ''; // only meaningful on E-visit today — Appointment has no Brand column, filter is inert there
   var trendMetric = 'leads';
   var trendGranularity = 'daily'; // daily | weekly | monthly | yearly
@@ -664,7 +667,7 @@
     if (!refPlanned) return { ok:false, reason:'No plan for the past two weeks' };
     var refRows = RAW.rows.filter(function(row){
       var d = field(row,'date');
-      return d >= refFrom && d <= anchorISO && (!channelTypeFilter || field(row,'channelType') === channelTypeFilter) && (!brandFilter || field(row,'brand') === brandFilter) && smMatch(row);
+      return d >= refFrom && d <= anchorISO && (!channelTypeFilter || chanKey(field(row,'channelType')) === chanKey(channelTypeFilter)) && (!brandFilter || field(row,'brand') === brandFilter) && smMatch(row);
     });
     var pace = computeTotals(refRows)[metricKey] / refPlanned;
     var planned = targetForDateRange(metricKey, nb.from, nb.to);
@@ -786,7 +789,7 @@
     return RAW.rows.filter(function(row){
       var d = field(row,'date');
       if (d < range.from || d > range.to) return false;
-      if (channelTypeFilter && field(row,'channelType') !== channelTypeFilter) return false;
+      if (channelTypeFilter && chanKey(field(row,'channelType')) !== chanKey(channelTypeFilter)) return false;
       if (!smMatch(row)) return false;
       if (brandFilter && field(row,'brand') !== brandFilter) return false;
       return true;
@@ -876,8 +879,12 @@
       RAW.rows.forEach(function(row){ var v = field(row,'channelType'); if (v) types[v] = true; });
       return Object.keys(types).sort();
     })();
+    var seenCh = {}, optList = [];
+    list.forEach(function(t){ var k = chanKey(t); if (!k || seenCh[k]) return; seenCh[k] = true; optList.push(String(t).trim()); });
+    var extraCh = {}; RAW.rows.forEach(function(row){ var v = field(row,'channelType'); var k = chanKey(v); if (k && k !== '0' && !seenCh[k] && !extraCh[k]) extraCh[k] = String(v).trim(); }); // '0' = a blank cell
+    Object.keys(extraCh).sort().forEach(function(k){ optList.push(extraCh[k]); }); // seen in the data but missing from the Settings list
     els.channelTypeSelect.innerHTML = '<option value="">Channel Type: All</option>';
-    list.forEach(function(t){
+    optList.forEach(function(t){
       var o = document.createElement('option'); o.value = t; o.textContent = t;
       els.channelTypeSelect.appendChild(o);
     });
@@ -933,15 +940,16 @@
     order.forEach(function(k){
       var actual = t[k];
       var alwaysShow = (k === 'orders' || k === 'cpo'); // the two numbers the team always looks for
-      if (!actual && !alwaysShow) return; // hide tiles with no data for the current filter — keeps the grid focused
+      var info = TARGETABLE_METRICS[k] ? periodTargetInfo(k) : null;
+      var hasTarget = !!(info && info.target > 0);
+      if (!actual && !alwaysShow && !hasTarget) return; // hide tiles with neither data nor a target for the current filter
       var isDerived = (k==='cpl'||k==='cpo'||k==='cpmql');
       var tile = document.createElement('div');
       tile.className = 'tile' + (isDerived ? ' derived' : '');
       var html = '<div class="label">'+METRIC_LABELS[k]+'</div>'+
         '<div class="value tabular"></div>';
 
-      var info = TARGETABLE_METRICS[k] ? periodTargetInfo(k) : null;
-      if (!actual && alwaysShow){
+      if (!actual && alwaysShow && (k === 'cpo' || !hasTarget)){
         // nothing recorded: say so instead of showing a 0% "attainment" (a zero CPO would read as perfect)
         html += '<div class="target-line">' + (k === 'cpo' ? (t.cost ? 'No orders in this range' : 'No cost recorded in this range') : 'No orders in this range') + '</div>';
       } else if (info && info.target > 0){
