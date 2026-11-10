@@ -347,7 +347,7 @@
 
 </main>
 
-<footer>Refreshes automatically every 5 minutes &middot; last pulled <span id="footer-time" class="tabular">&mdash;</span> &middot; version 2026-10-28</footer>
+<footer>Refreshes automatically every 5 minutes &middot; last pulled <span id="footer-time" class="tabular">&mdash;</span></footer>
 
 <script>
 (function(){
@@ -449,6 +449,14 @@
   // Channel names are compared without surrounding spaces / case: Appointment's Settings list says "Organic Web " (trailing
   // space) while its data rows say "Organic Web" — an exact compare silently showed nothing for that channel.
   function chanKey(v){ return String(v === undefined || v === null ? '' : v).trim().toLowerCase(); }
+  // Synthetic Channel Type option: every channel (rows with no channel included) except Rebranding.
+  var NO_REBRANDING = '__noRebranding';
+  function channelMatch(row){
+    if (!channelTypeFilter) return true;
+    var k = chanKey(field(row,'channelType'));
+    if (channelTypeFilter === NO_REBRANDING) return k !== 'rebranding';
+    return k === chanKey(channelTypeFilter);
+  }
   var brandFilter = ''; // only meaningful on E-visit today — Appointment has no Brand column, filter is inert there
   var trendMetric = 'leads';
   var trendGranularity = 'daily'; // daily | weekly | monthly | yearly
@@ -506,7 +514,7 @@
     var row = TARGETS_BY_KEY[jy + '|' + JMONTHS_FULL[jmIdx-1]];
     if (!row) return 0;
     var chPrefix = CHANNEL_TARGET_METRICS_[metricKey];
-    if (channelTypeFilter){
+    if (channelTypeFilter && channelTypeFilter !== NO_REBRANDING){
       var suffix = CHANNEL_TARGET_SUFFIX_[channelTypeFilter.trim()];
       if (!suffix || !chPrefix) return 0;     // no plan column for this channel / metric -> no plan (not the blended one)
       return tfield(row, chPrefix + suffix);
@@ -667,7 +675,7 @@
     if (!refPlanned) return { ok:false, reason:'No plan for the past two weeks' };
     var refRows = RAW.rows.filter(function(row){
       var d = field(row,'date');
-      return d >= refFrom && d <= anchorISO && (!channelTypeFilter || chanKey(field(row,'channelType')) === chanKey(channelTypeFilter)) && (!brandFilter || field(row,'brand') === brandFilter) && smMatch(row);
+      return d >= refFrom && d <= anchorISO && channelMatch(row) && (!brandFilter || field(row,'brand') === brandFilter) && smMatch(row);
     });
     var pace = computeTotals(refRows)[metricKey] / refPlanned;
     var planned = targetForDateRange(metricKey, nb.from, nb.to);
@@ -789,7 +797,7 @@
     return RAW.rows.filter(function(row){
       var d = field(row,'date');
       if (d < range.from || d > range.to) return false;
-      if (channelTypeFilter && chanKey(field(row,'channelType')) !== chanKey(channelTypeFilter)) return false;
+      if (!channelMatch(row)) return false;
       if (!smMatch(row)) return false;
       if (brandFilter && field(row,'brand') !== brandFilter) return false;
       return true;
@@ -881,9 +889,9 @@
     })();
     var seenCh = {}, optList = [];
     list.forEach(function(t){ var k = chanKey(t); if (!k || seenCh[k]) return; seenCh[k] = true; optList.push(String(t).trim()); });
-    var extraCh = {}; RAW.rows.forEach(function(row){ var v = field(row,'channelType'); var k = chanKey(v); if (k && k !== '0' && !seenCh[k] && !extraCh[k]) extraCh[k] = String(v).trim(); }); // '0' = a blank cell
+    var extraCh = {}; RAW.rows.forEach(function(row){ var v = field(row,'channelType'); var k = chanKey(v); if (k && !seenCh[k] && !extraCh[k]) extraCh[k] = String(v).trim(); });
     Object.keys(extraCh).sort().forEach(function(k){ optList.push(extraCh[k]); }); // seen in the data but missing from the Settings list
-    els.channelTypeSelect.innerHTML = '<option value="">Channel Type: All</option>';
+    els.channelTypeSelect.innerHTML = '<option value="">Channel Type: All</option><option value="' + NO_REBRANDING + '">All except Rebranding</option>';
     optList.forEach(function(t){
       var o = document.createElement('option'); o.value = t; o.textContent = t;
       els.channelTypeSelect.appendChild(o);
@@ -1346,7 +1354,7 @@
     TARGETS = payload.targets || { fields: [], rows: [] };
     TARGET_IDX = {};
     TARGETS.fields.forEach(function(f,i){ TARGET_IDX[f] = i; });
-    var badCells = sanitizeNumbers(RAW, TARGETS);
+    sanitizeNumbers(RAW, TARGETS);
     TARGETS_BY_KEY = {};
     TARGETS.rows.forEach(function(row){
       var key = row[TARGET_IDX.year] + '|' + row[TARGET_IDX.month];
