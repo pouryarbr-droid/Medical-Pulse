@@ -289,6 +289,8 @@
             <option value="campaign">Campaign</option>
             <option value="landingPage">Landing Page</option>
             <option value="copy">Copy</option>
+            <option value="utmTerm" data-needs="utmTerm">UTM Term</option>
+            <option value="utmContent" data-needs="utmContent">UTM Content</option>
           </select>
         </div>
         <div class="table-wrap expanded">
@@ -449,7 +451,8 @@
   var channelTypeFilter = '';
   // Channel names are compared without surrounding spaces / case: Appointment's Settings list says "Organic Web " (trailing
   // space) while its data rows say "Organic Web" — an exact compare silently showed nothing for that channel.
-  function chanKey(v){ return String(v === undefined || v === null ? '' : v).trim().toLowerCase(); }
+  // A blank Channel Type cell arrives as the number 0 (Code.gs sends empty cells as 0): that is "no channel", not a channel called "0".
+  function chanKey(v){ if (v === 0 || v === '0') return ''; return String(v === undefined || v === null ? '' : v).trim().toLowerCase(); }
   // Synthetic Channel Type option: every channel (rows with no channel included) except Rebranding.
   var NO_REBRANDING = '__noRebranding';
   function channelMatch(row){
@@ -882,6 +885,12 @@
   }
 
   function renderFilterOptions(){
+    // UTM Term / UTM Content groupings exist only when the sheet's Code.gs serves those columns
+    Array.prototype.forEach.call(els.breakdownDimSelect.querySelectorAll('option[data-needs]'), function(o){
+      var has = FIELD_IDX[o.dataset.needs] !== undefined;
+      o.hidden = !has; o.disabled = !has;
+      if (!has && breakdownDim === o.value){ breakdownDim = 'channelType'; els.breakdownDimSelect.value = 'channelType'; }
+    });
     var current = els.channelTypeSelect.value;
     var list = CHANNEL_TYPES.length ? CHANNEL_TYPES.slice() : (function(){
       var types = {};
@@ -1116,7 +1125,7 @@
     });
   }
 
-  var DIM_LABEL = { channelType:'Channel Type', brand:'Brand', source:'Source', sourceMedium:'Source / Medium', campaign:'Campaign', landingPage:'Landing Page', copy:'Copy' };
+  var DIM_LABEL = { channelType:'Channel Type', brand:'Brand', utmTerm:'UTM Term', utmContent:'UTM Content', source:'Source', sourceMedium:'Source / Medium', campaign:'Campaign', landingPage:'Landing Page', copy:'Copy' };
 
   function groupKey(row, dim){
     if (dim === 'sourceMedium'){
